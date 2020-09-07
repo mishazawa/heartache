@@ -8,10 +8,12 @@ import (
 )
 
 func main () {
-	file, err := ioutil.ReadFile("./.test/A Sacred Lot.mid")
+	file, err := ioutil.ReadFile("./.test/short.mid")
 	if err != nil {
 		panic(err)
 	}
 	mfile, _ := parser.ParseFile(file)
-	fmt.Printf("%+v\n", mfile)
+	for _, ev := range mfile.Tracks[0].Events {
+		fmt.Printf("%+v\n", ev)
+	}
 }
