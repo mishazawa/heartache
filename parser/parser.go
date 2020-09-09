@@ -33,7 +33,7 @@ func ParseFile (data []byte) (*MidiFile, error) {
 		if err != nil {
 			panic(err)
 		}
-		mfile.Tracks[i].Parse(trackData.Data)
+		mfile.Tracks[i].ParseEvents(trackData.Data)
 	}
 	return mfile, nil
 }

@@ -2,24 +2,25 @@ package events
 
 import (
 	"io"
+	"bytes"
 	"encoding/binary"
 )
 
 
 type VariableMetaEvent struct {
-	TrackEvent
+	DeltaTime
 	data    []byte
 	message byte
 }
 
 type KeySignatureEvent struct {
-	TrackEvent
+	DeltaTime
 	shift int8
 	key   byte
 }
 
 type TimeSignatureEvent struct {
-	TrackEvent
+	DeltaTime
 	nominator   uint8
 	denominator uint8 // 2^denominetor
 	clocks      uint8 // MIDI clocks
@@ -27,7 +28,7 @@ type TimeSignatureEvent struct {
 }
 
 type SMPTEOffsetEvent struct {
-	TrackEvent
+	DeltaTime
 	hours     uint8
 	minutes   uint8
 	seconds   uint8
@@ -36,57 +37,56 @@ type SMPTEOffsetEvent struct {
 }
 
 type SetTempoEvent struct {
-	TrackEvent
+	DeltaTime
 	tempo uint32
 }
 
 type EndOfTrackEvent struct {
-	TrackEvent
+	DeltaTime
 }
 
 type MidiChannelPrefixEvent struct {
-	TrackEvent
+	DeltaTime
 	channel byte
 }
 
 type MetaSequenceNumberEvent struct {
-	TrackEvent
+	DeltaTime
 	seqnum1 byte
 	seqnum2 byte
 }
 
-func ParseMetaEvent (evt byte, reader io.ByteReader) (Event, error) {
-	message, err := reader.ReadByte()
+func ParseMetaEvent (evt *IntermediateEvent) Event {
 
-	if err != nil {
-		return nil, err
-	}
-
-	var event Event
-
-	switch message {
+	switch evt.status {
 	case 0x00:
-		event, err = parseSequenceNumberEvent(reader)
+		return &MetaSequenceNumberEvent {
+			DeltaTime: DeltaTime(evt.delta),
+			seqnum1: evt.data[0],
+			seqnum2: evt.data[1],
+		}
 	case 0x20:
-		event, err = parseMidiChannelPrefixEvent(reader)
+		return &MidiChannelPrefixEvent {
+			DeltaTime: DeltaTime(evt.delta),
+			channel: evt.data[0],
+		}
 	case 0x2f:
-		event, err = parseEndOfTrackEvent(reader)
-	case 0x51:
-		event, err = parseSetTempoEvent(reader)
-	case 0x54:
-		event, err = parseSMPTEOffsetEvent(reader)
-	case 0x58:
-		event, err = parseTimeSignatureEvent(reader)
-	case 0x59:
-		event, err = parseKeySignatureEvent(reader)
-	default:
-		event, err = parseVariableMetaEvent(message, reader)
+		return &EndOfTrackEvent{ DeltaTime(evt.delta) }
+	// case 0x51:
+	// 	event, err = parseSetTempoEvent(reader)
+	// case 0x54:
+	// 	event, err = parseSMPTEOffsetEvent(reader)
+	// case 0x58:
+	// 	event, err = parseTimeSignatureEvent(reader)
+	// case 0x59:
+	// 	event, err = parseKeySignatureEvent(reader)
+	// default:
+	// 	event, err = parseVariableMetaEvent(message, reader)
 	}
-
-	return event, nil
+	return nil
 }
 
-func parseVariableMetaEvent (message byte, reader io.ByteReader) (*VariableMetaEvent, error) {
+func parseVariableMetaEvent (message byte, reader *bytes.Reader) (*VariableMetaEvent, error) {
 	event := &VariableMetaEvent{}
 
 	messageLen, err := binary.ReadUvarint(reader)
@@ -97,14 +97,9 @@ func parseVariableMetaEvent (message byte, reader io.ByteReader) (*VariableMetaE
 
 	event.data = make([]byte, messageLen)
 
-	for _, i := range event.data {
-		data, err := reader.ReadByte()
-
-		if err != nil {
-			return nil, err
-		}
-
-		event.data[i] = data
+	_, err = reader.Read(event.data)
+	if err != nil {
+		return nil, err
 	}
 
 	event.message = message
@@ -220,41 +215,4 @@ func parseEndOfTrackEvent (reader io.ByteReader) (*EndOfTrackEvent, error) {
 	event := &EndOfTrackEvent {}
 	_, err := reader.ReadByte() // no other bytes in message
 	return event, err
-}
-
-func parseMidiChannelPrefixEvent (reader io.ByteReader) (*MidiChannelPrefixEvent, error) {
-	var err error
-
-	event := &MidiChannelPrefixEvent {}
-
-	_, err = reader.ReadByte() // skip length
-
-	if err != nil {
-		return nil, err
-	}
-
-	event.channel, err = reader.ReadByte()
-
-	return event, err
-}
-
-func parseSequenceNumberEvent (reader io.ByteReader) (*MetaSequenceNumberEvent, error) {
-	_, err := reader.ReadByte() // skip length
-	if err != nil {
-		return nil, err
-	}
-
-	event := &MetaSequenceNumberEvent {}
-	event.seqnum1, err = reader.ReadByte()
-
-	if err != nil {
-		return nil, err
-	}
-
-	event.seqnum2, err = reader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-
-	return event, nil
 }

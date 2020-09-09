@@ -1,10 +1,8 @@
 package parser
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/binary"
-
 	"github.com/mishazawa/heartache/parser/events"
 )
 
@@ -18,48 +16,54 @@ func NewTrack () *Track {
 	}
 }
 
-func (t *Track) Parse (data []byte) {
+func (t *Track) ParseEvents (data []byte) {
+	rawEvents := make([]*events.IntermediateEvent, 0)
+
 	r := bytes.NewReader(data)
-	for r.Len() != 0 {
-		var event events.Event
+	var runningStatus byte
 
+	for r.Len() > 0 {
+		var err           error
+		var delta         uint64
+		var nextByte      byte
 
-		delta, err := binary.ReadUvarint(r)
+		intermediateEvent := events.NewIntermediateEvent();
+
+		delta, err = binary.ReadUvarint(r)
 
 		if err != nil {
 			panic(err)
 		}
 
+		nextByte, err = r.ReadByte()
 
-		evt, err := r.ReadByte()
 		if err != nil {
 			panic(err)
 		}
 
-		// filter out all non-Midi events
-		if evt & 0xf0 == 0xf0 {
-			if evt == 0xf0 || evt == 0xf7 {
-				// catch sysex events
-				event, err = events.ParseSysExEvent(evt, r)
-			} else if evt == 0xff {
-				// catch meta events
-				event, err = events.ParseMetaEvent(evt, r);
-			} else {
-				fmt.Printf("unknown META evt %x:%d\n", evt, delta)
-			}
+		kind := nextByte & 0xf0
+		buffer := make([]byte, 0)
+
+		if kind >= 0x80 {
+			runningStatus = nextByte
 		} else {
-			event, err = events.ParseMidiEvent(evt, r)
+			buffer = append(buffer, nextByte)
 		}
 
-		if event != nil {
-			event.SetDelta(delta)
-		}
+		err = intermediateEvent.ParseEvent(runningStatus, buffer, delta, r)
 
 		if err != nil {
 			panic(err)
 		}
 
-		t.Events = append(t.Events, event)
-
+		rawEvents = append(rawEvents, intermediateEvent)
 	}
+
+	t.Events = make([]events.Event, len(rawEvents))
+
+	for i, ev := range rawEvents {
+		t.Events[i] = ev.ProcessRawEvent()
+	}
+
 }
+

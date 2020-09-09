@@ -1,31 +1,12 @@
 package events
 
-import (
-	"io"
-)
-
 type MidiEvent struct {
-	TrackEvent
-	status    byte
-	key       byte
-	velocity  byte
+	DeltaTime
+	Status byte
+	Data   []byte
 }
 
-func ParseMidiEvent (evt byte, reader io.ByteReader) (*MidiEvent, error) {
+func ParseMidiEvent (evt *IntermediateEvent) *MidiEvent {
 	event := &MidiEvent{}
-	event.status = evt
-
-	var err error
-
-	event.key, err = reader.ReadByte()
-	if err != nil {
-		return event, err
-	}
-
-	event.velocity, err = reader.ReadByte()
-	if err != nil {
-		return event, err
-	}
-
-	return event, nil
+	return event
 }
