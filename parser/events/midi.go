@@ -2,11 +2,14 @@ package events
 
 type MidiEvent struct {
 	DeltaTime
-	Status byte
-	Data   []byte
+	status byte
+	data   []byte
 }
 
 func ParseMidiEvent (evt *IntermediateEvent) *MidiEvent {
-	event := &MidiEvent{}
-	return event
+	return &MidiEvent{
+		DeltaTime: DeltaTime(evt.delta),
+		status: evt.status,
+		data: evt.data,
+	}
 }

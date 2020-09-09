@@ -3,10 +3,13 @@ package events
 type SysExEvent struct {
 	DeltaTime
 	data    []byte
-	message byte
+	status byte
 }
 
 func ParseSysExEvent (evt *IntermediateEvent) *SysExEvent {
-	event := &SysExEvent {}
-	return event
+	return &SysExEvent {
+		DeltaTime: DeltaTime(evt.delta),
+		status: evt.status,
+		data: evt.data,
+	}
 }

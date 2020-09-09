@@ -7,7 +7,7 @@ import (
 )
 
 func main () {
-	file, err := ioutil.ReadFile("./.test/Twinkle.mid")
+	file, err := ioutil.ReadFile("./.test/parse_me.mid")
 	if err != nil {
 		panic(err)
 	}

@@ -1,16 +1,14 @@
 package events
 
 import (
-	"io"
-	"bytes"
 	"encoding/binary"
 )
 
 
 type VariableMetaEvent struct {
 	DeltaTime
-	data    []byte
-	message byte
+	data   []byte
+	status byte
 }
 
 type KeySignatureEvent struct {
@@ -57,7 +55,6 @@ type MetaSequenceNumberEvent struct {
 }
 
 func ParseMetaEvent (evt *IntermediateEvent) Event {
-
 	switch evt.status {
 	case 0x00:
 		return &MetaSequenceNumberEvent {
@@ -72,147 +69,46 @@ func ParseMetaEvent (evt *IntermediateEvent) Event {
 		}
 	case 0x2f:
 		return &EndOfTrackEvent{ DeltaTime(evt.delta) }
-	// case 0x51:
-	// 	event, err = parseSetTempoEvent(reader)
-	// case 0x54:
-	// 	event, err = parseSMPTEOffsetEvent(reader)
-	// case 0x58:
-	// 	event, err = parseTimeSignatureEvent(reader)
-	// case 0x59:
-	// 	event, err = parseKeySignatureEvent(reader)
-	// default:
-	// 	event, err = parseVariableMetaEvent(message, reader)
+	case 0x51:
+		return &SetTempoEvent {
+			DeltaTime: DeltaTime(evt.delta),
+			tempo: padUint32(evt.data),
+		}
+	case 0x54:
+		return &SMPTEOffsetEvent{
+			DeltaTime: DeltaTime(evt.delta),
+			hours:     evt.data[0],
+			minutes:   evt.data[1],
+			seconds:   evt.data[2],
+			frames:    evt.data[3],
+			subframes: evt.data[4],
+		}
+	case 0x58:
+		return &TimeSignatureEvent{
+			DeltaTime: DeltaTime(evt.delta),
+			nominator:   evt.data[0],
+			denominator: evt.data[1],
+			clocks:      evt.data[2],
+			beats:       evt.data[3],
+		}
+	case 0x59:
+		return &KeySignatureEvent{
+			DeltaTime: DeltaTime(evt.delta),
+			shift: int8(evt.data[0]),
+			key:   evt.data[1],
+		}
+	default:
+		return &VariableMetaEvent{
+			DeltaTime: DeltaTime(evt.delta),
+			status: evt.status,
+			data: evt.data,
+		}
 	}
 	return nil
 }
 
-func parseVariableMetaEvent (message byte, reader *bytes.Reader) (*VariableMetaEvent, error) {
-	event := &VariableMetaEvent{}
-
-	messageLen, err := binary.ReadUvarint(reader)
-
-	if err != nil {
-		return nil, err
-	}
-
-	event.data = make([]byte, messageLen)
-
-	_, err = reader.Read(event.data)
-	if err != nil {
-		return nil, err
-	}
-
-	event.message = message
-	return event, nil
-}
-
-func parseKeySignatureEvent (reader io.ByteReader) (*KeySignatureEvent, error) {
-	var err error
-
-	_, err = reader.ReadByte() // skip len
-	if err != nil {
-		return nil, err
-	}
-
-	var shiftData byte
-	shiftData, err = reader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-
-
-	var key byte
-	key, err = reader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-
-	event := &KeySignatureEvent{
-		shift: int8(shiftData),
-		key:   key,
-	}
-
-	return event, err
-}
-
-func parseTimeSignatureEvent (reader io.ByteReader) (*TimeSignatureEvent, error) {
-	tsLen, err := reader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-
-	buf := make([]byte, tsLen)
-
-	for i := range buf {
-		data, err := reader.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		buf[i] = data
-	}
-	event := &TimeSignatureEvent{
-		nominator:   buf[0],
-		denominator: buf[1],
-		clocks:      buf[2],
-		beats:       buf[3],
-	}
-
-	return event, nil
-}
-
-func parseSMPTEOffsetEvent (reader io.ByteReader) (*SMPTEOffsetEvent, error) {
-
-	offsetLen, err := reader.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-
-	buf := make([]byte, offsetLen)
-
-	for i := range buf {
-		data, err := reader.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		buf[i] = data
-	}
-
-	event := &SMPTEOffsetEvent{
-		hours:     buf[0],
-		minutes:   buf[1],
-		seconds:   buf[2],
-		frames:    buf[3],
-		subframes: buf[4],
-	}
-
-	return event, nil
-}
-
-func parseSetTempoEvent (reader io.ByteReader) (*SetTempoEvent, error) {
-	event := &SetTempoEvent {}
-
-	_, err := reader.ReadByte() // skip length
-	if err != nil {
-		return nil, err
-	}
-
-	// 32 bit just to convert byte array to uint32
-	buf := []byte {0x00, 0x00, 0x00, 0x00}
-
-	for i := 1; i < len(buf); i += 1 {
-		data, err := reader.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		buf[i] = data
-	}
-
-	event.tempo = binary.BigEndian.Uint32(buf)
-	return event, err
-}
-
-func parseEndOfTrackEvent (reader io.ByteReader) (*EndOfTrackEvent, error) {
-	event := &EndOfTrackEvent {}
-	_, err := reader.ReadByte() // no other bytes in message
-	return event, err
+func padUint32(s []byte) uint32 {
+	var b [4]byte
+	copy(b[4-len(s):], s)
+	return binary.BigEndian.Uint32(b[:])
 }

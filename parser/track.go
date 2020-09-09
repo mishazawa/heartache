@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"bytes"
 	"encoding/binary"
 	"github.com/mishazawa/heartache/parser/events"
@@ -63,6 +64,7 @@ func (t *Track) ParseEvents (data []byte) {
 
 	for i, ev := range rawEvents {
 		t.Events[i] = ev.ProcessRawEvent()
+		fmt.Printf("%T\n", t.Events[i])
 	}
 
 }
