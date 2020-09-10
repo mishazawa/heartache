@@ -44,7 +44,7 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 		default:
 			nextByte, err := r.ReadByte()
 			if err != nil {
-				panic(err)
+				return err
 			}
 			event.data = append(event.data, nextByte)
 		}
@@ -59,37 +59,37 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 				length, err := binary.ReadUvarint(r)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 
 				event.data = make([]byte, length)
 				_, err = r.Read(event.data)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 			case 0xff:
 				event.message = META_MESSAGE
 				metaStatus, err := r.ReadByte()
 				if err != nil {
-					panic(err)
+					return err
 				}
 				event.status = metaStatus
 
 				length, err := binary.ReadUvarint(r)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 
 				event.data = make([]byte, length)
 				_, err = r.Read(event.data)
 
 				if err != nil && err != io.EOF {
-					panic(err)
+					return err
 				}
 			default:
-				fmt.Println("Unknown event %#x\n", status)
+				return fmt.Errorf("Unknown event %#x\n", status)
 			}
 		} else {
 			event.message = MIDI_MESSAGE
@@ -100,7 +100,7 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 				_, err := r.Read(event.data)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 			case 0xC0, 0xD0:
 				//midi short
@@ -108,10 +108,10 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 				_, err := r.Read(event.data)
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 			default:
-				fmt.Println("Unknown event %#x\n", status)
+				return fmt.Errorf("Unknown status %#x\n", status)
 			}
 		}
 	}
@@ -119,16 +119,15 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 }
 
 
-func (event *IntermediateEvent) ProcessRawEvent () Event {
+func (event *IntermediateEvent) ProcessRawEvent () (Event, error) {
 	switch event.message {
 	case MIDI_MESSAGE:
-		return ParseMidiEvent(event)
+		return ParseMidiEvent(event), nil
 	case META_MESSAGE:
-		return ParseMetaEvent(event)
+		return ParseMetaEvent(event), nil
 	case SYSEX_MESSAGE:
-		return ParseSysExEvent(event)
+		return ParseSysExEvent(event), nil
 	default:
-		fmt.Println("Unknown event %+v\n", event)
-		return nil
+		return nil, fmt.Errorf("Unknown event %+v\n", event)
 	}
 }

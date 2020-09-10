@@ -4,39 +4,38 @@ import (
 	"encoding/binary"
 )
 
-
 type VariableMetaEvent struct {
 	DeltaTime
-	data   []byte
-	status byte
+	Data   []byte
+	Status byte
 }
 
 type KeySignatureEvent struct {
 	DeltaTime
-	shift int8
-	key   byte
+	Shift int8
+	Key   byte
 }
 
 type TimeSignatureEvent struct {
 	DeltaTime
-	nominator   uint8
-	denominator uint8 // 2^denominetor
-	clocks      uint8 // MIDI clocks
-	beats       uint8 // 32nd notes per MIDI 1/4 note
+	Nominator   uint8
+	Denominator uint8 // 2^denominetor
+	Clocks      uint8 // MIDI clocks
+	Beats       uint8 // 32nd notes per MIDI 1/4 note
 }
 
 type SMPTEOffsetEvent struct {
 	DeltaTime
-	hours     uint8
-	minutes   uint8
-	seconds   uint8
-	frames    uint8
-	subframes uint8
+	Hours     uint8
+	Minutes   uint8
+	Seconds   uint8
+	Frames    uint8
+	Subframes uint8
 }
 
 type SetTempoEvent struct {
 	DeltaTime
-	tempo uint32
+	Tempo uint32
 }
 
 type EndOfTrackEvent struct {
@@ -45,13 +44,13 @@ type EndOfTrackEvent struct {
 
 type MidiChannelPrefixEvent struct {
 	DeltaTime
-	channel byte
+	Channel byte
 }
 
 type MetaSequenceNumberEvent struct {
 	DeltaTime
-	seqnum1 byte
-	seqnum2 byte
+	SequenceNumber1 byte
+	SequenceNumber2 byte
 }
 
 func ParseMetaEvent (evt *IntermediateEvent) Event {
@@ -59,49 +58,49 @@ func ParseMetaEvent (evt *IntermediateEvent) Event {
 	case 0x00:
 		return &MetaSequenceNumberEvent {
 			DeltaTime: DeltaTime(evt.delta),
-			seqnum1: evt.data[0],
-			seqnum2: evt.data[1],
+			SequenceNumber1: evt.data[0],
+			SequenceNumber2: evt.data[1],
 		}
 	case 0x20:
 		return &MidiChannelPrefixEvent {
 			DeltaTime: DeltaTime(evt.delta),
-			channel: evt.data[0],
+			Channel: evt.data[0],
 		}
 	case 0x2f:
 		return &EndOfTrackEvent{ DeltaTime(evt.delta) }
 	case 0x51:
 		return &SetTempoEvent {
 			DeltaTime: DeltaTime(evt.delta),
-			tempo: padUint32(evt.data),
+			Tempo: padUint32(evt.data),
 		}
 	case 0x54:
 		return &SMPTEOffsetEvent{
 			DeltaTime: DeltaTime(evt.delta),
-			hours:     evt.data[0],
-			minutes:   evt.data[1],
-			seconds:   evt.data[2],
-			frames:    evt.data[3],
-			subframes: evt.data[4],
+			Hours:     evt.data[0],
+			Minutes:   evt.data[1],
+			Seconds:   evt.data[2],
+			Frames:    evt.data[3],
+			Subframes: evt.data[4],
 		}
 	case 0x58:
 		return &TimeSignatureEvent{
 			DeltaTime: DeltaTime(evt.delta),
-			nominator:   evt.data[0],
-			denominator: evt.data[1],
-			clocks:      evt.data[2],
-			beats:       evt.data[3],
+			Nominator:   evt.data[0],
+			Denominator: evt.data[1],
+			Clocks:      evt.data[2],
+			Beats:       evt.data[3],
 		}
 	case 0x59:
 		return &KeySignatureEvent{
 			DeltaTime: DeltaTime(evt.delta),
-			shift: int8(evt.data[0]),
-			key:   evt.data[1],
+			Shift: int8(evt.data[0]),
+			Key:   evt.data[1],
 		}
 	default:
 		return &VariableMetaEvent{
 			DeltaTime: DeltaTime(evt.delta),
-			status: evt.status,
-			data: evt.data,
+			Status: evt.status,
+			Data: evt.data,
 		}
 	}
 	return nil

@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/binary"
 	"github.com/mishazawa/heartache/parser/events"
@@ -11,13 +10,13 @@ type Track struct {
 	Events []events.Event
 }
 
-func NewTrack () *Track {
+func newTrack () *Track {
 	return &Track {
 		Events: make([]events.Event, 0),
 	}
 }
 
-func (t *Track) ParseEvents (data []byte) {
+func (t *Track) parseEvents (data []byte) error {
 	rawEvents := make([]*events.IntermediateEvent, 0)
 
 	r := bytes.NewReader(data)
@@ -33,13 +32,13 @@ func (t *Track) ParseEvents (data []byte) {
 		delta, err = binary.ReadUvarint(r)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		nextByte, err = r.ReadByte()
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		kind := nextByte & 0xf0
@@ -54,7 +53,7 @@ func (t *Track) ParseEvents (data []byte) {
 		err = intermediateEvent.ParseEvent(runningStatus, buffer, delta, r)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		rawEvents = append(rawEvents, intermediateEvent)
@@ -63,9 +62,12 @@ func (t *Track) ParseEvents (data []byte) {
 	t.Events = make([]events.Event, len(rawEvents))
 
 	for i, ev := range rawEvents {
-		t.Events[i] = ev.ProcessRawEvent()
-		fmt.Printf("%T\n", t.Events[i])
+		event, err := ev.ProcessRawEvent()
+		if err != nil {
+			return err
+		}
+		t.Events[i] = event
 	}
-
+	return nil
 }
 
