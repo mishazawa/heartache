@@ -119,8 +119,6 @@ func (event *IntermediateEvent) ParseEvent (status byte, data []byte, delta uint
 }
 
 
-
-
 func (event *IntermediateEvent) ProcessRawEvent () Event {
 	switch event.message {
 	case MIDI_MESSAGE:
